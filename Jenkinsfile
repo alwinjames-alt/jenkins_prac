@@ -3,10 +3,8 @@ pipeline {
   tools { nodejs 'node22' }
 
   environment {
-    IMAGE    = 'YOUR_DOCKERHUB_USER/jenkins-demo'
-    TAG      = "${BUILD_NUMBER}"
-    APP_HOST = 'ubuntu@<EC2_PUBLIC_IP>'
-    APP_URL  = 'http://<EC2_PUBLIC_IP>:3000'
+    IMAGE = 'alwinjames313/jenkins_prac'
+    TAG   = "${BUILD_NUMBER}"
   }
 
   stages {
@@ -36,24 +34,6 @@ pipeline {
           '''
         }
       }
-    }
-
-    stage('Deploy') {
-      steps {
-        sshagent(['ec2-app-ssh']) {
-          sh '''
-            ssh -o StrictHostKeyChecking=no $APP_HOST "
-              docker pull $IMAGE:$TAG &&
-              (docker rm -f myapp || true) &&
-              docker run -d --name myapp --restart unless-stopped -p 3000:3000 $IMAGE:$TAG
-            "
-          '''
-        }
-      }
-    }
-
-    stage('Smoke Test') {
-      steps { sh 'sleep 5 && curl -f $APP_URL/health' }
     }
   }
 
