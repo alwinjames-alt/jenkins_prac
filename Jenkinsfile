@@ -18,7 +18,7 @@ pipeline {
 
     stage('Docker Build') {
       steps {
-        sh 'docker build --platform linux/amd64 -t $IMAGE:$TAG -t $IMAGE:latest .'
+        sh 'docker build --platform linux/arm64 -t $IMAGE:$TAG -t $IMAGE:latest .'
       }
     }
 
