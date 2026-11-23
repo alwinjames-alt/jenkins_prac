@@ -16,22 +16,16 @@ pipeline {
       steps { sh 'npm test' }
     }
 
-    stage('Docker Build') {
-      steps {
-        sh 'docker build --platform linux/arm64 -t $IMAGE:$TAG -t $IMAGE:latest .'
-      }
-    }
-
-    stage('Docker Push') {
-      steps {
-        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
-                                          usernameVariable: 'DH_USER',
-                                          passwordVariable: 'DH_PASS')]) {
-          sh '''
-            echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
-            docker push $IMAGE:$TAG
-            docker push $IMAGE:latest
-          '''
+stage('Docker Build & Push') {
+  steps {
+    withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+                                      usernameVariable: 'DH_USER',
+                                      passwordVariable: 'DH_PASS')]) {
+      sh '''
+        echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
+        docker buildx build --platform linux/arm64 \
+          -t $IMAGE:$TAG -t $IMAGE:latest --push .
+      '''
         }
       }
     }
