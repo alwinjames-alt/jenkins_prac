@@ -5,8 +5,8 @@ pipeline {
   environment {
     IMAGE    = 'alwinjames313/jenkins_prac'
     TAG      = "${BUILD_NUMBER}"
-    APP_HOST = 'ec2-user@54.173.11.115'
-    APP_URL  = 'http://54.173.11.115:3000'
+    APP_HOST = 'ec2-user@54.82.75.88'
+    APP_URL  = 'http://54.82.75.88:3000'
   }
 
   stages {
