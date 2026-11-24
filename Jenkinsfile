@@ -1,6 +1,6 @@
 def TARGETS = [
   dev:  [host: 'ec2-user@18.232.114.142',  url: 'http://18.232.114.142:3000',  cred: 'ec2-app-ssh', tagPrefix: 'dev-', envTag: 'dev'],
-  main: [host: 'ec2-user@54.82.75.88 ', url: 'http://54.82.75.88 :3000', cred: 'ec2-app-ssh', tagPrefix: '',     envTag: 'latest'],
+  main: [host: 'ec2-user@54.82.75.88 ', url: 'http://54.82.75.88:3000', cred: 'ec2-app-ssh', tagPrefix: '',     envTag: 'latest'],
 ]
 
 pipeline {
