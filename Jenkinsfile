@@ -1,29 +1,50 @@
+def TARGETS = [
+  dev:  [host: 'ec2-user@18.232.114.142',  url: 'http://18.232.114.142:3000',  cred: 'ec2-app-ssh', tagPrefix: 'dev-', envTag: 'dev'],
+  main: [host: 'ec2-user@54.82.75.88 ', url: 'http://54.82.75.88 :3000', cred: 'ec2-app-ssh', tagPrefix: '',     envTag: 'latest'],
+]
+
 pipeline {
   agent any
   tools { nodejs 'node22' }
 
+  parameters {
+    string(name: 'ROLLBACK_TAG', defaultValue: '', description: 'Existing image tag to redeploy (leave empty for a normal build)')
+  }
+
   environment {
-    IMAGE    = 'alwinjames313/jenkins_prac'
-    IS_MAIN  = "${env.BRANCH_NAME == 'main'}"
-    TAG      = "${env.BRANCH_NAME == 'main' ? '' : 'dev-'}${BUILD_NUMBER}"
-    ENV_TAG  = "${env.BRANCH_NAME == 'main' ? 'latest' : 'dev'}"
-    APP_HOST = "${env.BRANCH_NAME == 'main' ? 'ec2-user@54.82.75.88' : 'ec2-user@18.232.114.142'}"
-    APP_URL  = "${env.BRANCH_NAME == 'main' ? 'http://54.82.75.88:3000' : 'http://18.232.114.142:3000'}"
+    IMAGE = 'alwinjames313/jenkins_prac'
   }
 
   stages {
     stage('Install') {
+      when { expression { !params.ROLLBACK_TAG } }
       steps { sh 'npm ci' }
     }
 
     stage('Test') {
+      when { expression { !params.ROLLBACK_TAG } }
       steps { sh 'npm test' }
     }
 
     stage('Release') {
-      when { anyOf { branch 'main'; branch 'dev' } }
+      when { expression { TARGETS.containsKey(env.BRANCH_NAME) } }
       stages {
+        stage('Resolve Target') {
+          steps {
+            script {
+              def t = TARGETS[env.BRANCH_NAME]
+              env.APP_HOST = t.host
+              env.APP_URL  = t.url
+              env.SSH_CRED = t.cred
+              env.ENV_TAG  = t.envTag
+              env.TAG      = params.ROLLBACK_TAG ? params.ROLLBACK_TAG : "${t.tagPrefix}${env.BUILD_NUMBER}"
+              echo "Deploying ${env.IMAGE}:${env.TAG} to ${env.APP_HOST}"
+            }
+          }
+        }
+
         stage('Docker Build & Push') {
+          when { expression { !params.ROLLBACK_TAG } }
           steps {
             withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
                                               usernameVariable: 'DH_USER',
@@ -39,7 +60,7 @@ pipeline {
 
         stage('Deploy') {
           steps {
-            sshagent(['ec2-app-ssh']) {
+            sshagent([env.SSH_CRED]) {
               sh '''
                 ssh -o StrictHostKeyChecking=no $APP_HOST "
                   docker pull $IMAGE:$TAG &&
