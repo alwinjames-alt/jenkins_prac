@@ -18,19 +18,22 @@ pipeline {
       steps { sh 'npm test' }
     }
 
-    stage('Docker Build & Push') {
-      steps {
-        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
-                                          usernameVariable: 'DH_USER',
-                                          passwordVariable: 'DH_PASS')]) {
-          sh '''
-            echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
-            docker buildx build --platform linux/arm64 \
-              -t $IMAGE:$TAG -t $IMAGE:latest --push .
-          '''
+    stage('Release') {
+      when { branch 'main' }
+      stages {
+        stage('Docker Build & Push') {
+          steps {
+            withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+                                              usernameVariable: 'DH_USER',
+                                              passwordVariable: 'DH_PASS')]) {
+              sh '''
+                echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
+                docker buildx build --platform linux/arm64 \
+                  -t $IMAGE:$TAG -t $IMAGE:latest --push .
+              '''
+            }
+          }
         }
-      }
-    }
 
     stage('Deploy') {
       steps {
@@ -48,7 +51,9 @@ pipeline {
 
     stage('Smoke Test') {
       steps { sh 'sleep 5 && curl -f $APP_URL/health' }
+     }
     }
+   }
   }
 
   post {
