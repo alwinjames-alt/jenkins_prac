@@ -4,9 +4,11 @@ pipeline {
 
   environment {
     IMAGE    = 'alwinjames313/jenkins_prac'
-    TAG      = "${BUILD_NUMBER}"
-    APP_HOST = 'ec2-user@54.173.11.115'
-    APP_URL  = 'http://54.173.11.115:3000'
+    IS_MAIN  = "${env.BRANCH_NAME == 'main'}"
+    TAG      = "${env.BRANCH_NAME == 'main' ? '' : 'dev-'}${BUILD_NUMBER}"
+    ENV_TAG  = "${env.BRANCH_NAME == 'main' ? 'latest' : 'dev'}"
+    APP_HOST = "${env.BRANCH_NAME == 'main' ? 'ec2-user@54.82.75.88' : 'ec2-user@18.232.114.142'}"
+    APP_URL  = "${env.BRANCH_NAME == 'main' ? 'http://54.82.75.88:3000' : 'http://18.232.114.142:3000'}"
   }
 
   stages {
@@ -19,7 +21,7 @@ pipeline {
     }
 
     stage('Release') {
-      when { branch 'main' }
+      when { anyOf { branch 'main'; branch 'dev' } }
       stages {
         stage('Docker Build & Push') {
           steps {
@@ -29,31 +31,31 @@ pipeline {
               sh '''
                 echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
                 docker buildx build --platform linux/arm64 \
-                  -t $IMAGE:$TAG -t $IMAGE:latest --push .
+                  -t $IMAGE:$TAG -t $IMAGE:$ENV_TAG --push .
               '''
             }
           }
         }
 
-    stage('Deploy') {
-      steps {
-        sshagent(['ec2-app-ssh']) {
-          sh '''
-            ssh -o StrictHostKeyChecking=no $APP_HOST "
-              docker pull $IMAGE:$TAG &&
-              (docker rm -f myapp || true) &&
-              docker run -d --name myapp --restart unless-stopped -p 3000:3000 $IMAGE:$TAG
-            "
-          '''
+        stage('Deploy') {
+          steps {
+            sshagent(['ec2-app-ssh']) {
+              sh '''
+                ssh -o StrictHostKeyChecking=no $APP_HOST "
+                  docker pull $IMAGE:$TAG &&
+                  (docker rm -f myapp || true) &&
+                  docker run -d --name myapp --restart unless-stopped -p 3000:3000 $IMAGE:$TAG
+                "
+              '''
+            }
+          }
+        }
+
+        stage('Smoke Test') {
+          steps { sh 'sleep 5 && curl -f $APP_URL/health' }
         }
       }
     }
-
-    stage('Smoke Test') {
-      steps { sh 'sleep 5 && curl -f $APP_URL/health' }
-     }
-    }
-   }
   }
 
   post {
